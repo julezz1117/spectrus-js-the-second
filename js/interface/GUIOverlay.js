@@ -223,6 +223,16 @@ class GUIOverlay { // eslint-disable-line no-unused-vars
       '20px',
       'Mono',
     );
+    if (this.audioSystem.spec.track.estimateVTL) {
+      this.renderText(
+        `${this.spec.vtl.toFixed(2)} cm`,
+        10,
+        this.spec.viewPortBottom - 70,
+        tmpColor,
+        "20px",
+        "Mono"
+      );
+    }
   }
 
   harmonicstoggle() {

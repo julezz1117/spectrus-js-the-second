@@ -9,6 +9,7 @@ const FORMANT_COLORS = [
   '#22f',
 ];
 
+const SPEED_OF_SOUND = 34030;
 function getBaseLog(number, base) {
   return Math.round((Math.log(number) / Math.log(base)) * 1000000000) / 1000000000;
 }
@@ -148,11 +149,15 @@ class Spectrogram { // eslint-disable-line no-unused-vars
       formantCount: 3,
       fundamentalMinAmp: 150,
       fundamentalAmp: 0,
+      estimateVTL: false,
     };
 
     // Initialize variables for formant tracking.
     this.f = Array(5).fill({ index: 0, amp: 0, active: false });
     this.formantColors = FORMANT_COLORS;
+
+    // Initialize VTL
+    this.vtl = 0;
 
     // Draw the scale.
     this.clear();
@@ -247,6 +252,19 @@ class Spectrogram { // eslint-disable-line no-unused-vars
     );
   }
 
+  updateVtl(data) {
+    if (this.pause) return;
+    if (!this.estimateVTL) return;
+
+    let movAvg = movingAverage(data, 20);
+    movAvg = movingAverage(movAvg, 10);
+
+    const movAvgPeaks = getPeaks(movAvg, 6, 1);
+    const formants = getFormants(movAvgPeaks, this.track.formantCount);
+
+    this.vtl = this.estimateVTL(formants);
+  }
+
   plotFormants(data, dt) {
     if (this.pause) return;
     const width = Math.min(Math.max(Math.round(this.speed * dt), 1), 5);
@@ -286,6 +304,21 @@ class Spectrogram { // eslint-disable-line no-unused-vars
     }
   }
 
+  estimateVTL(formants) {
+    if (formants.length === 0) {
+      throw new Error("First formant not found!");
+    }
+
+    const firstFormantFreq = formants[3][0];
+
+    const result =
+      firstFormantFreq === 0
+        ? this.vtl
+        : SPEED_OF_SOUND / (4 * firstFormantFreq);
+
+    return result;
+  }
+
   draw(data, dt) {
     if (this.pause) return;
     const width = Math.min(Math.max(Math.round(this.speed * dt), 1), 5);
@@ -309,6 +342,7 @@ class Spectrogram { // eslint-disable-line no-unused-vars
       );
     }
     this.plotFormants(data, dt);
+    this.updateVtl(data);
   }
 
   plot(x, y, color, width, height) {
@@ -490,6 +524,9 @@ class Spectrogram { // eslint-disable-line no-unused-vars
     this.track.formants = !this.track.formants;
   }
 
+  estimateVTLToggle() {
+    this.track.estimateVTL = !this.track.estimateVTL;
+  }
   scaleModeToggle() {
     this.scaleMode = this.scaleMode === 'log' ? 'linear' : 'log';
     this.updateScale();
